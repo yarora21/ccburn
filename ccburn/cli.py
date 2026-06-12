@@ -410,12 +410,14 @@ CCBURN_STATUSLINE = {
 }
 
 CCBURN_HOOK_PROMPT = {
+    "matcher": "",
     "type": "command",
     "command": "ccburn hook",
     "timeout": 10,
 }
 
 CCBURN_HOOK_PRECOMPACT = {
+    "matcher": "",
     "type": "command",
     "command": "ccburn hook --event precompact",
     "timeout": 10,
