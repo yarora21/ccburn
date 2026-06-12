@@ -80,6 +80,71 @@ Writes a PNG with:
 - **Cumulative line**: total spend over the session
 - **Split point**: dashed line where splitting the session would save the most
 
+## Live mode: catch cost bloat before it happens
+
+ccburn can also run *during* your session — a statusline meter and a hook that warns you when compacting would save real money.
+
+### Setup (one command)
+
+```bash
+ccburn install
+```
+
+This registers two things in `~/.claude/settings.json`:
+- A **statusline** showing live session cost and marginal cost per turn
+- A **UserPromptSubmit hook** that warns when your context has grown expensive
+
+To remove: `ccburn uninstall`
+
+### Statusline
+
+Once installed, your Claude Code status bar shows:
+
+```
+$=14.20 | next ≈ $0.31/turn (6.2x) | compact → ≈$0.06/turn
+```
+
+- **$=14.20** — session cost so far (API-equivalent estimate)
+- **next ≈ $0.31/turn** — what your next message will cost, dominated by cache reads of the grown context
+- **(6.2x)** — ratio vs the first 5 turns (your "baseline" cost)
+- **compact → ≈$0.06/turn** — estimated per-turn cost after compacting
+
+Color thresholds: default below 2x, yellow 2–5x, red above 5x.
+
+Early/cheap sessions just show: `$=0.84 | next ≈ $0.05/turn`
+
+For embedding in other statusline tools (ccstatusline, claude-powerline), use `ccburn statusline --json` to get raw values.
+
+### Cost warning hook
+
+The hook fires a `systemMessage` (shown to you, not injected into Claude's context) when ALL of:
+- Cost ratio ≥ 4x your session baseline
+- Marginal cost ≥ $0.15/turn (silences cheap Haiku/Sonnet sessions)
+- Compacting would save ≥ $2
+
+```
+ccburn: next turn ≈ $0.32 (6x session start). /compact now ≈ saves $9 at your current pace.
+```
+
+Fires at most twice per session (4x and 8x tiers). Resets if you `/compact`. Never blocks your prompt — all failures exit silently.
+
+### The key metric: marginal cost of next turn
+
+This is what makes ccburn's live mode different from other statusline tools. ccusage shows session cost and $/hr burn rate. cc-safe-setup counts tool calls. Neither answers: **"what will my next message cost?"**
+
+On Opus, a 120k-token context costs ≈$0.18 just in cache reads *per turn* — before Claude writes a single word. Auto-compact triggers near the context *limit* (a correctness threshold); cost-optimal compaction arrives much earlier.
+
+**Auto-compact protects your context window. ccburn protects your wallet.**
+
+### Assumptions and honesty
+
+All dollar figures are API-equivalent **estimates** (marked with ≈). The compact savings estimate assumes:
+- Post-compact context ≈ 15,000 tokens (configurable)
+- Remaining turns estimated from your historical session lengths (fallback: 20 turns)
+- Compaction has real costs — lost detail, possible file re-reads
+
+ccburn tells you when compacting likely pays for itself. It never tells you that you must compact.
+
 ## How it works
 
 Claude Code writes a JSONL log for every session to `~/.claude/projects/`. Each assistant turn includes token usage (input, output, cache writes, cache reads) and tool calls. ccburn:
@@ -106,11 +171,15 @@ Cache-read burn and model-mix waste account for essentially all quantifiable was
 
 ## Prior art
 
-- [ccusage](https://github.com/ryoppippi/ccusage) — CLI tables of cost by day/session/project. Most popular in the space. Great for the bill, no waste analysis.
-- [claude-token-analyzer](https://github.com/anthropics/claude-token-analyzer) — Statistical anomaly detection (6 types), severity scoring, SQLite. Closest neighbor — but flags anomalies without behavioral explanation or dollar attribution.
-- ccost, ccflare, Claude-Code-Usage-Monitor, CCTracker — Various UIs on the same JSONL data, all answering "how much."
+| Tool | What it does | Live? | Waste analysis? | Marginal cost? |
+|------|-------------|-------|----------------|----------------|
+| [ccusage](https://github.com/ryoppippi/ccusage) | Cost tables by day/session | Statusline (cost + $/hr) | No | No |
+| [cc-safe-setup](https://github.com/ATheorell/cc-safe-setup) | Hook: warn on tool call count | Yes (hook) | No | No |
+| [claude-token-analyzer](https://github.com/anthropics/claude-token-analyzer) | Statistical anomaly detection | No | Flags anomalies | No |
+| ccost, ccflare, CCTracker | Various UIs on JSONL data | Varies | No | No |
+| **ccburn** | Waste detectors + live cost warnings | Statusline + hook | Yes, with $ amounts | **Yes** |
 
-ccburn is the explanation layer: not just *what* you spent, but *why*, and *what to do differently*.
+Context warnings exist (tool-call counting). Cost warnings don't — except here.
 
 ## License
 
