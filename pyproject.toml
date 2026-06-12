@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccburn"
-version = "0.1.1"
+version = "0.1.2"
 description = "Explain why your Claude Code sessions are expensive."
 readme = "README.md"
 license = "MIT"
