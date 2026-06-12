@@ -411,16 +411,16 @@ CCBURN_STATUSLINE = {
 
 CCBURN_HOOK_PROMPT = {
     "matcher": "",
-    "type": "command",
-    "command": "ccburn hook",
-    "timeout": 10,
+    "hooks": [
+        {"type": "command", "command": "ccburn hook", "timeout": 10},
+    ],
 }
 
 CCBURN_HOOK_PRECOMPACT = {
     "matcher": "",
-    "type": "command",
-    "command": "ccburn hook --event precompact",
-    "timeout": 10,
+    "hooks": [
+        {"type": "command", "command": "ccburn hook --event precompact", "timeout": 10},
+    ],
 }
 
 # Marker to identify ccburn-managed entries
@@ -447,8 +447,15 @@ def _save_settings(settings: dict, backup: bool = True) -> None:
 
 
 def _is_ccburn_entry(entry: dict) -> bool:
+    # Support legacy flat format and current hooks-array format
     cmd = entry.get("command", "")
-    return isinstance(cmd, str) and _CCBURN_MARKER in cmd
+    if isinstance(cmd, str) and _CCBURN_MARKER in cmd:
+        return True
+    for h in entry.get("hooks", []):
+        cmd = h.get("command", "")
+        if isinstance(cmd, str) and _CCBURN_MARKER in cmd:
+            return True
+    return False
 
 
 def cmd_install(args):
